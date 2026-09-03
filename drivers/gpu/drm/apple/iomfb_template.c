@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
+#include <drm/drm_connector.h>
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
@@ -577,6 +578,17 @@ static bool dcpep_process_chunks(struct apple_dcp *dcp,
 		}
 		if (dcp->nr_modes == 0)
 			dev_warn(dcp->dev, "TimingElements without valid modes!\n");
+		else if (dcp->connector && !dcp->main_display &&
+			 dcp->connector_type != DRM_MODE_CONNECTOR_eDP &&
+			 !dcp->connector->connected) {
+			/*
+			 * USB-C DP-alt sometimes never delivers hotplug_gated.
+			 * Modes arrived, so the sink is there — notify DRM.
+			 */
+			dcp->connector->connected = 1;
+			dcp->valid_mode = false;
+			schedule_work(&dcp->connector->hotplug_wq);
+		}
 	} else if (!strcmp(req->key, "DisplayAttributes")) {
 		ret = parse_display_attributes(&ctx, &dcp->width_mm,
 					&dcp->height_mm);

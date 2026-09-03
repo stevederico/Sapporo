@@ -7,10 +7,17 @@
  */
 
 #include <drm/drm_connector.h>
+#if IS_REACHABLE(CONFIG_DRM_APPLE)
+#include <linux/apple_dcp_dptx.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#endif
 
 #include <linux/i2c.h>
 #include <linux/acpi.h>
+#include <linux/device.h>
 #include <linux/gpio/consumer.h>
+#include <linux/kconfig.h>
 #include <linux/of.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
@@ -634,6 +641,57 @@ static void cd321x_typec_update_mode(struct tps6598x *tps, struct cd321x_status 
 	cd321x->state.data = NULL;
 }
 
+#if IS_REACHABLE(CONFIG_DRM_APPLE)
+static struct platform_device *cd321x_dcp_pdev(struct cd321x *cd321x)
+{
+	struct device_node *np;
+
+	if (!cd321x->connector_fwnode)
+		return NULL;
+	np = to_of_node(cd321x->connector_fwnode);
+	if (!np)
+		return NULL;
+	return of_find_device_by_node(np);
+}
+
+static void cd321x_dptx_prefer(struct cd321x *cd321x)
+{
+	struct platform_device *pdev;
+
+	if (!cd321x->dptx_phy_valid)
+		return;
+	pdev = cd321x_dcp_pdev(cd321x);
+	if (!pdev)
+		return;
+	dcp_dptx_prefer_atc(pdev, cd321x->dptx_phy);
+	put_device(&pdev->dev);
+}
+
+static bool cd321x_dptx_owns(struct cd321x *cd321x)
+{
+	struct platform_device *pdev;
+	bool owns;
+
+	if (!cd321x->dptx_phy_valid)
+		return true;
+	pdev = cd321x_dcp_pdev(cd321x);
+	if (!pdev)
+		return true;
+	owns = dcp_dptx_owns_atc(pdev, cd321x->dptx_phy);
+	put_device(&pdev->dev);
+	return owns;
+}
+#else
+static void cd321x_dptx_prefer(struct cd321x *cd321x)
+{
+}
+
+static bool cd321x_dptx_owns(struct cd321x *cd321x)
+{
+	return true;
+}
+#endif
+
 static void cd321x_update_work(struct work_struct *work)
 {
 	struct cd321x *cd321x = container_of(to_delayed_work(work),
@@ -685,7 +743,8 @@ static void cd321x_update_work(struct work_struct *work)
 	if (old_role != USB_ROLE_NONE && (new_role != old_role || was_disconnected))
 		usb_role_switch_set_role(tps->role_sw, USB_ROLE_NONE);
 
-	if (cd321x->connector_fwnode && (!dp_hpd || dp_hpd_changed)) {
+	if (cd321x->connector_fwnode && (!dp_hpd || dp_hpd_changed) &&
+	    cd321x_dptx_owns(cd321x)) {
 		drm_connector_oob_hotplug_event(cd321x->connector_fwnode, connector_status_disconnected);
 	}
 
@@ -745,8 +804,10 @@ static void cd321x_update_work(struct work_struct *work)
 	/* Launch the USB role switch */
 	usb_role_switch_set_role(tps->role_sw, new_role);
 
-	if (cd321x->connector_fwnode && dp_hpd)
+	if (cd321x->connector_fwnode && dp_hpd) {
+		cd321x_dptx_prefer(cd321x);
 		drm_connector_oob_hotplug_event(cd321x->connector_fwnode, connector_status_connected);
+	}
 
 	power_supply_changed(tps->psy);
 }
@@ -782,6 +843,36 @@ static int cd321x_connect(struct tps6598x *tps, u32 status)
 	schedule_delayed_work(&cd321x->update_work, msecs_to_jiffies(CD321X_DEBOUNCE_DELAY_MS));
 
 	return 0;
+}
+
+static void cd321x_pm_resume(struct tps6598x *tps)
+{
+	struct cd321x *cd321x = container_of(tps, struct cd321x, tps);
+	u32 status;
+
+	guard(mutex)(&tps->lock);
+
+	if (!tps6598x_read_status(tps, &status))
+		return;
+	if (!tps6598x_read_power_status(tps))
+		return;
+	if (!tps->data->read_data_status(tps))
+		return;
+
+	tps->status = status;
+	cd321x_queue_status(cd321x);
+	/*
+	 * Sleep does not raise a CD321x IRQ if the plug never moved.
+	 * Force HPD to look changed so the oob path tears down and
+	 * rebuilds DPTX after resume.
+	 */
+	if (cd321x->connector_fwnode)
+		cd321x->update_status.data_status_changed |=
+			CD321X_DATA_STATUS_HPD_LEVEL;
+
+	cancel_delayed_work(&cd321x->update_work);
+	schedule_delayed_work(&cd321x->update_work,
+			      msecs_to_jiffies(CD321X_DEBOUNCE_DELAY_MS));
 }
 
 static irqreturn_t cd321x_interrupt(int irq, void *data)
@@ -1206,6 +1297,10 @@ cd321x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 		connector_fwnode = fwnode_find_reference(fwnode, "displayport", 0);
 	if (!IS_ERR_OR_NULL(connector_fwnode))
 		cd321x->connector_fwnode = connector_fwnode;
+
+	if (!fwnode_property_read_u32(fwnode, "apple,dptx-phy",
+				      &cd321x->dptx_phy))
+		cd321x->dptx_phy_valid = true;
 
 	cd321x->state.alt = NULL;
 	cd321x->state.mode = TYPEC_STATE_SAFE;
@@ -1846,6 +1941,9 @@ int tipd_resume(struct tps6598x *tps)
 		queue_delayed_work(system_power_efficient_wq, &tps->wq_poll,
 				   msecs_to_jiffies(POLL_INTERVAL));
 
+	if (tps->data->resume)
+		tps->data->resume(tps);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tipd_resume);
@@ -1867,6 +1965,7 @@ const struct tipd_data tipd_cd321x_data = {
 	.reset = cd321x_reset,
 	.switch_power_state = cd321x_switch_power_state,
 	.connect = cd321x_connect,
+	.resume = cd321x_pm_resume,
 };
 EXPORT_SYMBOL_GPL(tipd_cd321x_data);
 
@@ -1925,9 +2024,11 @@ const struct tipd_data tipd_sn201202x_data = {
 	.reset = cd321x_reset,
 	.switch_power_state = cd321x_switch_power_state,
 	.connect = cd321x_connect,
+	.resume = cd321x_pm_resume,
 };
 EXPORT_SYMBOL_GPL(tipd_sn201202x_data);
 
 MODULE_AUTHOR("Heikki Krogerus <heikki.krogerus@linux.intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("TI TPS6598x USB Power Delivery Controller Core Functions");
+MODULE_SOFTDEP("pre: appledrm");

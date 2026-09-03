@@ -48,6 +48,8 @@ struct apple_epic_service;
 
 struct dptx_port {
 	bool enabled, connected;
+	/* CD321x OOB HPD arrived before AppleDCPDPTXRemotePort was up */
+	bool pending_connect;
 	struct completion enable_completion;
 	struct completion linkcfg_completion;
 	u32 unit;

@@ -89,10 +89,10 @@
 
 	/* hacks */
 	apple,dptx-phy = <1>;
-	phys = <&atcphy1 PHY_TYPE_DP>;
-	phy-names = "dp-phy";
-	mux-controls = <&atcphy1_xbar 0>;
-	mux-control-names = "dp-xbar";
+	phys = <&atcphy1 PHY_TYPE_DP>, <&atcphy0 PHY_TYPE_DP>;
+	phy-names = "dp-phy", "dp-phy0";
+	mux-controls = <&atcphy1_xbar 0>, <&atcphy0_xbar 0>;
+	mux-control-names = "dp-xbar", "dp-xbar0";
 	mux-index = <0>;
 };
 
@@ -106,9 +106,15 @@
 	status = "okay";
 };
 
+&typec0 {
+	displayport = <&dcp>;
+	apple,dptx-phy = <0>;
+};
+
 &typec1 {
 	/* hacks */
 	displayport = <&dcp>;
+	apple,dptx-phy = <1>;
 };
 #endif
 

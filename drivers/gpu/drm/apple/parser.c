@@ -5,13 +5,16 @@
 #include <linux/err.h>
 #include <linux/limits.h>
 #include <linux/math.h>
+#include <linux/minmax.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <uapi/drm/drm_mode.h>
 
 #if IS_ENABLED(CONFIG_DRM_APPLE_AUDIO)
 #include <sound/pcm.h> // for sound format masks
 #endif
 
+#include "dcp-internal.h"
 #include "parser.h"
 #include "trace.h"
 
@@ -357,11 +360,82 @@ static int fill_color_mode(struct dcp_color_mode *color,
 	return 0;
 }
 
+/*
+ * Linux compositors send sRGB. DCP's highest-score RGB mode is often DCI-P3
+ * or BT.2020 on wide-gamut monitors, which shows up as oversaturated colour
+ * on USB-C / HDMI. Rank sRGB/full-range first; fall back via sdr/best.
+ */
+static int sdr_rgb_rank(struct color_mode *cmode, bool linux_srgb)
+{
+	int rank;
+
+	if (!linux_srgb)
+		return cmode->score;
+
+	switch (cmode->colorimetry) {
+	case DCP_COLORIMETRY_SRGB:
+		rank = 300000;
+		break;
+	case DCP_COLORIMETRY_RGB:
+		rank = 200000;
+		break;
+	case DCP_COLORIMETRY_BT709:
+		rank = 100000;
+		break;
+	default:
+		return -1;
+	}
+
+	if (cmode->dynamic_range == DCP_COLOR_YCBCR_RANGE_FULL)
+		rank += 10000;
+	if (cmode->depth == 8)
+		rank += 100;
+	else if (cmode->depth == 10)
+		rank += 50;
+
+	return rank + min_t(int, cmode->score, 9999);
+}
+
+static int fill_sdr_rgb_mode(struct dcp_color_mode *color,
+			     struct color_mode *cmode, bool linux_srgb)
+{
+	int rank = sdr_rgb_rank(cmode, linux_srgb);
+
+	if (rank < 0)
+		return 0;
+	if (color->score >= 0 && color->score >= rank)
+		return 0;
+
+	if (cmode->colorimetry < 0 || cmode->colorimetry >= DCP_COLORIMETRY_COUNT)
+		return -EINVAL;
+	if (cmode->depth < 8 || cmode->depth > 12)
+		return -EINVAL;
+	if (cmode->dynamic_range < 0 || cmode->dynamic_range >= DCP_COLOR_YCBCR_RANGE_COUNT)
+		return -EINVAL;
+	if (cmode->eotf < 0 || cmode->eotf >= DCP_EOTF_COUNT)
+		return -EINVAL;
+	if (cmode->pixel_encoding < 0 || cmode->pixel_encoding >= DCP_COLOR_FORMAT_COUNT)
+		return -EINVAL;
+
+	color->score = rank;
+	color->id = cmode->id;
+	color->eotf = cmode->eotf;
+	color->format = cmode->pixel_encoding;
+	color->colorimetry = cmode->colorimetry;
+	color->range = cmode->dynamic_range;
+	color->depth = cmode->depth;
+
+	return 0;
+}
+
 static int parse_color_modes(struct dcp_parse_ctx *handle,
 			     struct dcp_display_mode *out)
 {
 	struct iterator outer_it;
 	int ret = 0;
+	bool linux_srgb = handle->dcp &&
+		handle->dcp->connector_type != DRM_MODE_CONNECTOR_eDP;
+
 	out->sdr_444.score = -1;
 	out->sdr_rgb.score = -1;
 	out->sdr.score = -1;
@@ -370,7 +444,15 @@ static int parse_color_modes(struct dcp_parse_ctx *handle,
 	dcp_parse_foreach_in_array(handle, outer_it) {
 		struct iterator it;
 		bool is_virtual = true;
-		struct color_mode cmode;
+		struct color_mode cmode = {
+			.colorimetry = -1,
+			.depth = -1,
+			.dynamic_range = -1,
+			.eotf = -1,
+			.id = -1,
+			.pixel_encoding = -1,
+			.score = -1,
+		};
 
 		dcp_parse_foreach_in_dict(handle, it) {
 			char *key = parse_string(it.handle);
@@ -415,7 +497,7 @@ static int parse_color_modes(struct dcp_parse_ctx *handle,
 		if (cmode.eotf == DCP_EOTF_SDR_GAMMA) {
 			if (cmode.pixel_encoding == DCP_COLOR_FORMAT_RGB &&
 				cmode.depth <= 10)
-				fill_color_mode(&out->sdr_rgb, &cmode);
+				fill_sdr_rgb_mode(&out->sdr_rgb, &cmode, linux_srgb);
 			else if (cmode.pixel_encoding == DCP_COLOR_FORMAT_YCBCR444 &&
 				cmode.depth <= 10)
 				fill_color_mode(&out->sdr_444, &cmode);

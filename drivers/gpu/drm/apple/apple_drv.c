@@ -89,7 +89,7 @@ static void apple_connector_oob_hotplug(struct drm_connector *connector,
 {
 	struct apple_connector *apple_connector = to_apple_connector(connector);
 
-	printk("#### oob_hotplug status:0x%x ####\n", (u32)status);
+	drm_dbg_kms(connector->dev, "oob_hotplug status:%d\n", status);
 
 	if (status == connector_status_connected)
 		dcp_dptx_connect_oob(apple_connector->dcp, 0);

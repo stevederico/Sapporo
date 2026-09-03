@@ -15,9 +15,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/mux/consumer.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/phy/phy.h>
 #include <linux/slab.h>
 #include <linux/soc/apple/rtkit.h>
 #include <linux/string.h>
@@ -32,6 +35,8 @@
 #include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
+
+#include <linux/apple_dcp_dptx.h>
 
 #include "afk.h"
 #include "av.h"
@@ -357,9 +362,110 @@ int dcp_get_connector_type(struct platform_device *pdev)
 
 #define DPTX_CONNECT_TIMEOUT msecs_to_jiffies(2000)
 
+static void disconnected_hpd_event(struct apple_connector *con);
+static int dcp_dptx_disconnect(struct apple_dcp *dcp, u32 port);
+
+static u32 dcp_dptx_atc(struct apple_dcp *dcp)
+{
+	if (dcp->preferred_atc_valid)
+		return dcp->preferred_atc;
+	return dcp->dptx_phy;
+}
+
+static int dcp_dptx_select_atc(struct apple_dcp *dcp, u32 atc)
+{
+	struct phy *phy;
+	struct mux_control *xbar;
+	int ret;
+
+	if (atc >= DCP_MAX_ATC)
+		return -EINVAL;
+
+	phy = dcp->atc_phys[atc];
+	xbar = dcp->atc_xbars[atc];
+	if (!phy)
+		phy = dcp->phy;
+	if (!xbar)
+		xbar = dcp->xbar;
+
+	if (!dcp->atc_phys[atc] && atc != dcp->dptx_phy) {
+		dev_warn(dcp->dev, "dptx: no PHY for atc %u\n", atc);
+		return -ENODEV;
+	}
+	if (!dcp->atc_xbars[atc] && atc != dcp->dptx_phy && dcp->xbar) {
+		dev_warn(dcp->dev, "dptx: no xbar for atc %u\n", atc);
+		return -ENODEV;
+	}
+
+	if (dcp->dptx_phy == atc && dcp->phy == phy)
+		return 0;
+
+	if (dcp->xbar && dcp->xbar != xbar && dcp->xbar_selected) {
+		mux_control_deselect(dcp->xbar);
+		dcp->xbar_selected = false;
+	}
+
+	if (xbar && (!dcp->xbar_selected || dcp->xbar != xbar)) {
+		ret = mux_control_select(xbar, dcp->xbar_state);
+		if (ret) {
+			dev_warn(dcp->dev,
+				 "dptx: xbar select atc%u state%u failed: %d\n",
+				 atc, dcp->xbar_state, ret);
+			return ret;
+		}
+		dcp->xbar_selected = true;
+	}
+
+	if (phy)
+		dcp->phy = phy;
+	if (xbar)
+		dcp->xbar = xbar;
+	dcp->dptx_phy = atc;
+	dev_info(dcp->dev, "dptx using atc %u\n", atc);
+	return 0;
+}
+
+void dcp_dptx_prefer_atc(struct platform_device *pdev, u32 atc)
+{
+	struct apple_dcp *dcp = platform_get_drvdata(pdev);
+
+	if (!dcp)
+		return;
+
+	mutex_lock(&dcp->hpd_mutex);
+	dcp->preferred_atc = atc;
+	dcp->preferred_atc_valid = true;
+	mutex_unlock(&dcp->hpd_mutex);
+}
+EXPORT_SYMBOL_GPL(dcp_dptx_prefer_atc);
+
+bool dcp_dptx_owns_atc(struct platform_device *pdev, u32 atc)
+{
+	struct apple_dcp *dcp = platform_get_drvdata(pdev);
+	u32 port;
+	bool owns = false;
+
+	if (!dcp)
+		return false;
+
+	mutex_lock(&dcp->hpd_mutex);
+	for (port = 0; port < ARRAY_SIZE(dcp->dptxport); port++) {
+		if (!dcp->dptxport[port].connected &&
+		    !dcp->dptxport[port].pending_connect)
+			continue;
+		if (dcp_dptx_atc(dcp) == atc)
+			owns = true;
+	}
+	mutex_unlock(&dcp->hpd_mutex);
+	return owns;
+}
+EXPORT_SYMBOL_GPL(dcp_dptx_owns_atc);
+
 static int dcp_dptx_connect(struct apple_dcp *dcp, u32 port)
 {
+	u32 atc;
 	int ret = 0;
+	int hpd_ret;
 
 	if (!dcp->phy) {
 		dev_warn(dcp->dev, "dcp_dptx_connect: missing phy\n");
@@ -369,12 +475,40 @@ static int dcp_dptx_connect(struct apple_dcp *dcp, u32 port)
 
 	mutex_lock(&dcp->hpd_mutex);
 	if (!dcp->dptxport[port].enabled) {
-		dev_warn(dcp->dev, "dcp_dptx_connect: dptx service for port %d not enabled\n", port);
-		ret = -ENODEV;
+		/*
+		 * USB-C DP-alt HPD (drm oob_hotplug) often races DPTX bring-up.
+		 * HDMI retries from the HPD GPIO in dcp_enable_dp2hdmi_hpd;
+		 * DP-alt has no GPIO, so remember the request and replay
+		 * once AppleDCPDPTXRemotePort is enabled.
+		 */
+		dcp->dptxport[port].pending_connect = true;
+		dev_info(dcp->dev,
+			 "dcp_dptx_connect: dptx port %d not ready, deferring\n",
+			 port);
+		ret = 0;
 		goto out_unlock;
 	}
 
-	if (dcp->dptxport[port].connected)
+	dcp->dptxport[port].pending_connect = false;
+	atc = dcp_dptx_atc(dcp);
+
+	if (dcp->dptxport[port].connected && atc != dcp->dptx_phy) {
+		mutex_unlock(&dcp->hpd_mutex);
+		disconnected_hpd_event(dcp->connector);
+		dcp_dptx_disconnect(dcp, port);
+		mutex_lock(&dcp->hpd_mutex);
+		if (!dcp->dptxport[port].enabled) {
+			dcp->dptxport[port].pending_connect = true;
+			ret = 0;
+			goto out_unlock;
+		}
+		atc = dcp_dptx_atc(dcp);
+	} else if (dcp->dptxport[port].connected) {
+		goto out_unlock;
+	}
+
+	ret = dcp_dptx_select_atc(dcp, atc);
+	if (ret)
 		goto out_unlock;
 
 	reinit_completion(&dcp->dptxport[port].linkcfg_completion);
@@ -386,17 +520,37 @@ static int dcp_dptx_connect(struct apple_dcp *dcp, u32 port)
 	mutex_unlock(&dcp->hpd_mutex);
 	ret = wait_for_completion_timeout(&dcp->dptxport[port].linkcfg_completion,
 				    DPTX_CONNECT_TIMEOUT);
-	if (ret < 0)
-		dev_warn(dcp->dev, "dcp_dptx_connect: port %d link complete failed:%d\n",
-			 port, ret);
-	else
-		dev_dbg(dcp->dev, "dcp_dptx_connect: waited %d ms for link\n",
-			jiffies_to_msecs(DPTX_CONNECT_TIMEOUT - ret));
+	if (!ret) {
+		dev_warn(dcp->dev,
+			 "dcp_dptx_connect: port %d link configuration timed out\n",
+			 port);
+		mutex_lock(&dcp->hpd_mutex);
+		if (dcp->dptxport[port].enabled && dcp->dptxport[port].connected) {
+			dptxport_release_display(dcp->dptxport[port].service);
+			dcp->dptxport[port].connected = false;
+		}
+		mutex_unlock(&dcp->hpd_mutex);
+		return -ETIMEDOUT;
+	}
+
+	dev_dbg(dcp->dev, "dcp_dptx_connect: waited %d ms for link\n",
+		jiffies_to_msecs(DPTX_CONNECT_TIMEOUT - ret));
 
 	usleep_range(5, 10);
 
-	if (dcp->connector_type == DRM_MODE_CONNECTOR_DisplayPort)
-		dptxport_set_hpd(dcp->dptxport[port].service, true);
+	mutex_lock(&dcp->hpd_mutex);
+	if (!dcp->dptxport[port].enabled || !dcp->dptxport[port].connected) {
+		mutex_unlock(&dcp->hpd_mutex);
+		return -ENODEV;
+	}
+
+	if (dcp->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+		hpd_ret = dptxport_set_hpd(dcp->dptxport[port].service, true);
+		if (hpd_ret)
+			dev_warn(dcp->dev, "dptxport_set_hpd failed: %d\n",
+				 hpd_ret);
+	}
+	mutex_unlock(&dcp->hpd_mutex);
 
 	if (dcp->avep)
 		av_service_connect(dcp);
@@ -421,6 +575,7 @@ static int dcp_dptx_disconnect(struct apple_dcp *dcp, u32 port)
 	dev_info(dcp->dev, "%s(port=%d)\n", __func__, port);
 
 	mutex_lock(&dcp->hpd_mutex);
+	dcp->dptxport[port].pending_connect = false;
 	if (dcp->dptxport[port].enabled && dcp->dptxport[port].connected) {
 		dptxport_release_display(dcp->dptxport[port].service);
 		dcp->dptxport[port].connected = false;
@@ -428,6 +583,16 @@ static int dcp_dptx_disconnect(struct apple_dcp *dcp, u32 port)
 	mutex_unlock(&dcp->hpd_mutex);
 
 	return 0;
+}
+
+static void dcp_dptx_replay_pending(struct apple_dcp *dcp)
+{
+	u32 port;
+
+	for (port = 0; port < ARRAY_SIZE(dcp->dptxport); port++) {
+		if (dcp->dptxport[port].pending_connect)
+			dcp_dptx_connect(dcp, port);
+	}
 }
 
 int dcp_dptx_connect_oob(struct platform_device *pdev, u32 port)
@@ -553,6 +718,8 @@ int dcp_start(struct platform_device *pdev)
 				dcp_dptx_connect(dcp, 0);
 #endif
 		}
+		if (!ret)
+			dcp_dptx_replay_pending(dcp);
 	} else if (dcp->phy) {
 		dev_warn(dcp->dev, "OS firmware incompatible with dptxport EP\n");
 	}
@@ -598,6 +765,8 @@ static int dcp_enable_dp2hdmi_hpd(struct apple_dcp *dcp)
 			dcp_dptx_connect(dcp, 0);
 		else
 			_dcp_poweroff(dcp);
+	} else {
+		dcp_dptx_replay_pending(dcp);
 	}
 
 	if (dcp->hdmi_hpd_irq)
@@ -995,7 +1164,6 @@ static int dcp_comp_bind(struct device *dev, struct device *main, void *data)
 	if (dcp->index || dcp->dptx_phy || dcp->dptx_die)
 		dev_info(dev, "DCP index:%u dptx target phy: %u dptx die: %u\n",
 			 dcp->index, dcp->dptx_phy, dcp->dptx_die);
-	mutex_init(&dcp->hpd_mutex);
 
 	if (!show_notch)
 		ret = of_property_read_u32(dev->of_node, "apple,notch-height",
@@ -1157,6 +1325,7 @@ static int dcp_platform_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct apple_dcp *dcp;
 	int surf, num_surfs;
+	int i;
 	u32 surf_en;
 	u32 mux_index;
 
@@ -1179,6 +1348,7 @@ static int dcp_platform_probe(struct platform_device *pdev)
 	dcp->fw_compat = fw_compat;
 	dcp->dev = dev;
 	dcp->hw = *(struct apple_dcp_hw_data *)of_device_get_match_data(dev);
+	mutex_init(&dcp->hpd_mutex);
 
 	platform_set_drvdata(pdev, dcp);
 
@@ -1187,6 +1357,23 @@ static int dcp_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to get dp-phy: %ld\n", PTR_ERR(dcp->phy));
 		return PTR_ERR(dcp->phy);
 	}
+
+	for (i = 0; i < DCP_MAX_ATC; i++) {
+		char phy_name[16];
+
+		snprintf(phy_name, sizeof(phy_name), "dp-phy%u", i);
+		if (of_property_match_string(dev->of_node, "phy-names",
+					     phy_name) < 0)
+			continue;
+		dcp->atc_phys[i] = devm_phy_optional_get(dev, phy_name);
+		if (IS_ERR(dcp->atc_phys[i]))
+			return PTR_ERR(dcp->atc_phys[i]);
+	}
+
+	of_property_read_u32(dev->of_node, "apple,dptx-phy", &dcp->dptx_phy);
+	if (dcp->dptx_phy < DCP_MAX_ATC && dcp->phy &&
+	    !dcp->atc_phys[dcp->dptx_phy])
+		dcp->atc_phys[dcp->dptx_phy] = dcp->phy;
 
 	bitmap_zero(dcp->iomfb_surfaces, DCP_MAX_PLANES);
 	num_surfs = of_property_count_elems_of_size(dev->of_node,
@@ -1263,6 +1450,33 @@ static int dcp_platform_probe(struct platform_device *pdev)
 			ret = mux_control_select(dcp->xbar, mux_index);
 			if (ret)
 				dev_warn(dev, "mux_control_select failed: %d\n", ret);
+			else
+				dcp->xbar_selected = true;
+			dcp->xbar_state = mux_index;
+
+			for (i = 0; i < DCP_MAX_ATC; i++) {
+				char mux_name[16];
+				struct mux_control *mux;
+
+				snprintf(mux_name, sizeof(mux_name), "dp-xbar%u", i);
+				if (of_property_match_string(dev->of_node,
+							     "mux-control-names",
+							     mux_name) < 0)
+					continue;
+				mux = devm_mux_control_get(dev, mux_name);
+				if (IS_ERR(mux)) {
+					if (PTR_ERR(mux) == -EPROBE_DEFER)
+						return -EPROBE_DEFER;
+					dev_warn(dev, "Failed to get %s: %ld\n",
+						 mux_name, PTR_ERR(mux));
+					continue;
+				}
+				dcp->atc_xbars[i] = mux;
+			}
+
+			if (dcp->dptx_phy < DCP_MAX_ATC && dcp->xbar &&
+			    !dcp->atc_xbars[dcp->dptx_phy])
+				dcp->atc_xbars[dcp->dptx_phy] = dcp->xbar;
 
 			/*
 			 * Switch atcphy to DP-only. should move to a Macbook Pro
@@ -1303,6 +1517,7 @@ static void dcp_platform_shutdown(struct platform_device *pdev)
 static int dcp_platform_suspend(struct device *dev)
 {
 	struct apple_dcp *dcp = dev_get_drvdata(dev);
+	u32 port;
 
 	if (dcp->avep)
 		av_service_disconnect(dcp);
@@ -1311,6 +1526,23 @@ static int dcp_platform_suspend(struct device *dev)
 		disable_irq(dcp->hdmi_hpd_irq);
 		disconnected_hpd_event(dcp->connector);
 		dcp_dptx_disconnect(dcp, 0);
+	} else if (dcp->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+		bool replay[ARRAY_SIZE(dcp->dptxport)];
+
+		/*
+		 * USB-C DP-alt has no HPD GPIO. Sleep does not generate a
+		 * CD321x IRQ if the plug never moved, so park the link and
+		 * reconnect on resume (same idea as HDMI's IRQ disable).
+		 */
+		for (port = 0; port < ARRAY_SIZE(dcp->dptxport); port++)
+			replay[port] = dcp->dptxport[port].connected ||
+				       dcp->dptxport[port].pending_connect;
+
+		disconnected_hpd_event(dcp->connector);
+		for (port = 0; port < ARRAY_SIZE(dcp->dptxport); port++) {
+			dcp_dptx_disconnect(dcp, port);
+			dcp->dptxport[port].pending_connect = replay[port];
+		}
 	}
 	/*
 	 * Set the device as a wakeup device, which forces its power
@@ -1328,6 +1560,10 @@ static int dcp_platform_resume(struct device *dev)
 
 	if (dcp->hdmi_hpd_irq)
 		enable_irq(dcp->hdmi_hpd_irq);
+	/*
+	 * USB-C DP-alt reconnect is driven by CD321x resume (mux_set, then
+	 * oob HPD). Replaying DPTX here races ATC PHY coming back from OFF.
+	 */
 
 	if (dcp->avep)
 		av_service_connect(dcp);

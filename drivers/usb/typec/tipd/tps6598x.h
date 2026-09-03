@@ -291,6 +291,7 @@ struct tipd_data {
 	bool (*read_data_status)(struct tps6598x *tps);
 	int (*reset)(struct tps6598x *tps);
 	int (*connect)(struct tps6598x *tps, u32 status);
+	void (*resume)(struct tps6598x *tps);
 };
 
 struct tps6598x {
@@ -375,6 +376,8 @@ struct cd321x {
 	struct usb_pd_identity cur_partner_identity;
 
 	struct fwnode_handle *connector_fwnode;
+	u32 dptx_phy;
+	bool dptx_phy_valid;
 };
 
 struct sn201202x {

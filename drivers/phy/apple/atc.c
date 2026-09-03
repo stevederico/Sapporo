@@ -34,6 +34,7 @@
 #include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/reset-controller.h>
 #include <linux/soc/apple/tunable.h>
 #include <linux/types.h>
@@ -2317,7 +2318,14 @@ static int atcphy_mux_set(struct typec_mux_dev *mux, struct typec_mux_state *sta
 		target_mode = APPLE_ATCPHY_MODE_OFF;
 	}
 
-	if (atcphy->mode == target_mode)
+	/*
+	 * DP-alt must be reprogrammed after sleep even if the mux mode
+	 * did not change: ATC PHY has no other resume path, and a no-op
+	 * here leaves the analog block in whatever state suspend left.
+	 */
+	if (atcphy->mode == target_mode &&
+	    target_mode != APPLE_ATCPHY_MODE_DP &&
+	    target_mode != APPLE_ATCPHY_MODE_USB3_DP)
 		return 0;
 
 	/*
@@ -2481,6 +2489,45 @@ static int atcphy_probe(struct platform_device *pdev)
 	return atcphy_probe_finalize(atcphy);
 }
 
+static int atcphy_suspend(struct device *dev)
+{
+	struct apple_atcphy *atcphy = dev_get_drvdata(dev);
+	int ret = 0;
+
+	guard(mutex)(&atcphy->lock);
+
+	switch (atcphy->mode) {
+	case APPLE_ATCPHY_MODE_DP:
+	case APPLE_ATCPHY_MODE_USB3_DP:
+		/*
+		 * fairydust DTS marks ps_atc1_common always-on because this
+		 * path used to be missing. Tear DP-alt down so mux_set can
+		 * rebuild it on resume.
+		 */
+		if (atcphy->pipehandler_up) {
+			ret = atcphy_configure_pipehandler_dummy(atcphy);
+			if (ret)
+				dev_warn(atcphy->dev,
+					 "suspend: dummy PIPE failed: %d\n", ret);
+			atcphy->pipehandler_up = false;
+		}
+		return atcphy_configure(atcphy, APPLE_ATCPHY_MODE_OFF);
+	default:
+		return 0;
+	}
+}
+
+static int atcphy_resume(struct device *dev)
+{
+	/*
+	 * CD321x resume re-runs typec_mux_set (DP / USB3+DP), which
+	 * reconfigures the PHY. Nothing to restore here.
+	 */
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(atcphy_pm_ops, atcphy_suspend, atcphy_resume);
+
 static const struct atcphy_hw atcphy_hw_t8103 = {
 	.gen = ATCPHY_GENERATION_T8103,
 	.aciophy_lane_mode = ACIOPHY_LANE_MODE_T8103,
@@ -2504,6 +2551,7 @@ static struct platform_driver atcphy_driver = {
 	.driver = {
 		.name = "phy-apple-atc",
 		.of_match_table = atcphy_match,
+		.pm = pm_sleep_ptr(&atcphy_pm_ops),
 	},
 	.probe = atcphy_probe,
 };

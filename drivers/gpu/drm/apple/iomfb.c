@@ -10,6 +10,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 #include <linux/kref.h>
+#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/ratelimit.h>
@@ -351,7 +352,7 @@ int dcp_get_modes(struct drm_connector *connector)
 
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
-	int i;
+	int i, n = 0;
 
 	for (i = 0; i < dcp->nr_modes; ++i) {
 		mode = drm_mode_duplicate(dev, &dcp->modes[i].mode);
@@ -362,6 +363,7 @@ int dcp_get_modes(struct drm_connector *connector)
 		}
 
 		drm_mode_probed_add(connector, mode);
+		n++;
 	}
 
 	if (dcp->nr_modes && dcp->dcpavserv.enabled &&
@@ -375,16 +377,26 @@ int dcp_get_modes(struct drm_connector *connector)
 			apple_connector->drm_edid = edid;
 		}
 	}
-	if (dcp->nr_modes && apple_connector->drm_edid)
+	if (dcp->nr_modes && apple_connector->drm_edid) {
 		drm_edid_connector_update(connector, apple_connector->drm_edid);
+		/*
+		 * DCP's timing list is incomplete on some USB-C / HDMI
+		 * monitors. Add EDID modes; lookup_mode maps them onto a
+		 * DCP color/timing ID by resolution and refresh.
+		 */
+		if (dcp->connector_type != DRM_MODE_CONNECTOR_eDP)
+			n += drm_edid_connector_add_modes(connector);
+	}
 
-	return dcp->nr_modes;
+	return n;
 }
 
 /* The user may own drm_display_mode, so we need to search for our copy */
 struct dcp_display_mode *lookup_mode(struct apple_dcp *dcp,
 					    const struct drm_display_mode *mode)
 {
+	struct dcp_display_mode *best = NULL;
+	int best_clock_diff = INT_MAX;
 	int i;
 
 	for (i = 0; i < dcp->nr_modes; ++i) {
@@ -394,7 +406,29 @@ struct dcp_display_mode *lookup_mode(struct apple_dcp *dcp,
 			return &dcp->modes[i];
 	}
 
-	return NULL;
+	/*
+	 * EDID porches/clocks often differ from DCP's firmware timings for
+	 * the same resolution and refresh. Map those onto the closest DCP
+	 * mode so USB-C monitors are not stuck with a short mode list.
+	 */
+	for (i = 0; i < dcp->nr_modes; ++i) {
+		const struct drm_display_mode *cand = &dcp->modes[i].mode;
+		int clock_diff;
+
+		if (cand->hdisplay != mode->hdisplay ||
+		    cand->vdisplay != mode->vdisplay)
+			continue;
+		if (abs(drm_mode_vrefresh(cand) - drm_mode_vrefresh(mode)) > 1)
+			continue;
+
+		clock_diff = abs(cand->clock - mode->clock);
+		if (clock_diff < best_clock_diff) {
+			best_clock_diff = clock_diff;
+			best = &dcp->modes[i];
+		}
+	}
+
+	return best;
 }
 
 enum drm_mode_status dcp_mode_valid(struct drm_connector *connector,

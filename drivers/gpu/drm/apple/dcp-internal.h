@@ -21,6 +21,7 @@
 #include "epic/dpavservep.h"
 
 #define DCP_MAX_PLANES 4
+#define DCP_MAX_ATC 8
 
 struct apple_dcp;
 struct apple_dcp_afkep;
@@ -256,6 +257,12 @@ struct apple_dcp {
 	struct phy *phy;
 	struct mux_control *xbar;
 	struct typec_mux *typec_mux;
+	struct phy *atc_phys[DCP_MAX_ATC];
+	struct mux_control *atc_xbars[DCP_MAX_ATC];
+	u32 xbar_state;
+	bool xbar_selected;
+	u32 preferred_atc;
+	bool preferred_atc_valid;
 
 	struct gpio_desc *hdmi_hpd;
 	struct gpio_desc *hdmi_pwren;

@@ -159,6 +159,11 @@
 			power-role = "dual";
 			data-role = "dual";
 
+#ifdef ENABLE_DCPEXT_TYPEC
+			displayport = <&dcpext1>;
+			apple,dptx-phy = <0>;
+#endif
+
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -194,6 +199,7 @@
 #ifdef ENABLE_DCPEXT_TYPEC
 			/* hacks */
 			displayport = <&dcpext1>;
+			apple,dptx-phy = <1>;
 #endif
 
 			ports {
@@ -227,6 +233,11 @@
 			label = "USB-C Right";
 			power-role = "dual";
 			data-role = "dual";
+
+#ifdef ENABLE_DCPEXT_TYPEC
+			displayport = <&dcpext1>;
+			apple,dptx-phy = <2>;
+#endif
 
 			ports {
 				#address-cells = <1>;
@@ -281,10 +292,10 @@
 
 	/* hacks */
 	apple,dptx-phy = <1>;
-	phys = <&atcphy1 PHY_TYPE_DP>;
-	phy-names = "dp-phy";
-	mux-controls = <&atcphy1_xbar 0>;
-	mux-control-names = "dp-xbar";
+	phys = <&atcphy1 PHY_TYPE_DP>, <&atcphy0 PHY_TYPE_DP>, <&atcphy2 PHY_TYPE_DP>;
+	phy-names = "dp-phy", "dp-phy0", "dp-phy2";
+	mux-controls = <&atcphy1_xbar 0>, <&atcphy0_xbar 0>, <&atcphy2_xbar 0>;
+	mux-control-names = "dp-xbar", "dp-xbar0", "dp-xbar2";
 	mux-index = <2>;
 };
 
@@ -292,11 +303,27 @@
 	status = "okay";
 };
 
+&atcphy0_xbar {
+	status = "okay";
+};
+
 &atcphy1_xbar {
         status = "okay";
 };
 
+&atcphy2_xbar {
+	status = "okay";
+};
+
+&ps_atc0_common {
+	apple,always-on; /* Needs to stay on for DP-alt suspend/resume */
+};
+
 &ps_atc1_common {
+	apple,always-on; /* Needs to stay on for DP-alt suspend/resume */
+};
+
+&ps_atc2_common {
 	apple,always-on; /* Needs to stay on for DP-alt suspend/resume */
 };
 #endif
