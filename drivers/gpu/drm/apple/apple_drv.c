@@ -27,6 +27,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_fb_dma_helper.h>
+#include <drm/drm_print.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_simple_kms_helper.h>
