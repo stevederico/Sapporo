@@ -1952,6 +1952,7 @@ L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/apple/
+F:	include/linux/apple_dcp_dptx.h
 
 APPLE PCIE CONTROLLER DRIVER
 M:	Marc Zyngier <maz@kernel.org>
