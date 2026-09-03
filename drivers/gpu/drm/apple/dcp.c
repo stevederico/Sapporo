@@ -1559,7 +1559,7 @@ static int dcp_platform_resume(struct device *dev)
 	struct apple_dcp *dcp = dev_get_drvdata(dev);
 
 	if (dcp->hdmi_hpd_irq)
-		enable_irq(dcp->hdmi_hpd_irq);
+		dcp_enable_dp2hdmi_hpd(dcp);
 	/*
 	 * USB-C DP-alt reconnect is driven by CD321x resume (mux_set, then
 	 * oob HPD). Replaying DPTX here races ATC PHY coming back from OFF.
