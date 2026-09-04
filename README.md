@@ -15,22 +15,22 @@
 
 | Block | M1 | M2 | M3 | M4 | Intel |
 |---|---|---|---|---|---|
-| Installer | ✅ | ✅ | 🚧 #58 | ❌ #67 | ✅ |
-| Display | ✅ | ✅ | 🚧 #58 | ❌ #67 | ✅ |
-| GPU/DCP | ✅ | ✅ | 🚧/❌ #59 | ❌ #67 | ✅ |
-| Decode | ✅ | ✅ | ⚠️ no AV1 | ❌ #93 | ✅ |
-| Encoder | ❌ #51 | ❌ #51 | ❌ #51 | ❌ #51 | ✅ |
-| USB | ✅ | ✅ | 🚧 #60 | ❌ #67 | ✅ |
-| Thunderbolt | 🚧 #45 | 🚧 #45 | ❌ #45 | ❌ #88 | ✅ |
-| DP altmode | 🚧 #47 | 🚧 #47 | 🚧 #47 | ❌ #89 | ✅ |
-| WiFi/BT | ✅ | ✅ | ✅ | ❌ #90 | ✅ |
-| Audio/cam | ✅ | ✅ | ⚠️ #61 | ❌ #91 | ✅, T1❌ |
-| Input | ✅ | ✅ | ✅ | ❌ #67 | ✅ |
-| Suspend | ✅ | ✅ | ✅ | ❌ #92 | ✅ |
-| TouchID | ❌ #48 | ❌ #48 | ❌ #48 | ❌ #48 | ❌ #87 |
-| SEP/ANE | 🚧 #49 | 🚧 #49 | ❌ #49 | ❌ #49 | n/a |
+| Installer | ✅ | ✅ | 🚧 [#58](https://github.com/stevederico/Sapporo/issues/58) | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
+| Display | ✅ | ✅ | 🚧 [#58](https://github.com/stevederico/Sapporo/issues/58) | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
+| GPU/DCP | ✅ | ✅ | 🚧/❌ [#59](https://github.com/stevederico/Sapporo/issues/59) | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
+| Decode | ✅ | ✅ | ⚠️ no AV1 | ❌ [#93](https://github.com/stevederico/Sapporo/issues/93) | ✅ |
+| Encoder | ❌ [#51](https://github.com/stevederico/Sapporo/issues/51) | ❌ [#51](https://github.com/stevederico/Sapporo/issues/51) | ❌ [#51](https://github.com/stevederico/Sapporo/issues/51) | ❌ [#51](https://github.com/stevederico/Sapporo/issues/51) | ✅ |
+| USB | ✅ | ✅ | 🚧 [#60](https://github.com/stevederico/Sapporo/issues/60) | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
+| Thunderbolt | 🚧 [#45](https://github.com/stevederico/Sapporo/issues/45) | 🚧 [#45](https://github.com/stevederico/Sapporo/issues/45) | ❌ [#45](https://github.com/stevederico/Sapporo/issues/45) | ❌ [#88](https://github.com/stevederico/Sapporo/issues/88) | ✅ |
+| DP altmode | 🚧 [#47](https://github.com/stevederico/Sapporo/issues/47) | 🚧 [#47](https://github.com/stevederico/Sapporo/issues/47) | 🚧 [#47](https://github.com/stevederico/Sapporo/issues/47) | ❌ [#89](https://github.com/stevederico/Sapporo/issues/89) | ✅ |
+| WiFi/BT | ✅ | ✅ | ✅ | ❌ [#90](https://github.com/stevederico/Sapporo/issues/90) | ✅ |
+| Audio/cam | ✅ | ✅ | ⚠️ [#61](https://github.com/stevederico/Sapporo/issues/61) | ❌ [#91](https://github.com/stevederico/Sapporo/issues/91) | ✅, T1❌ |
+| Input | ✅ | ✅ | ✅ | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
+| Suspend | ✅ | ✅ | ✅ | ❌ [#92](https://github.com/stevederico/Sapporo/issues/92) | ✅ |
+| TouchID | ❌ [#48](https://github.com/stevederico/Sapporo/issues/48) | ❌ [#48](https://github.com/stevederico/Sapporo/issues/48) | ❌ [#48](https://github.com/stevederico/Sapporo/issues/48) | ❌ [#48](https://github.com/stevederico/Sapporo/issues/48) | ❌ [#87](https://github.com/stevederico/Sapporo/issues/87) |
+| SEP/ANE | 🚧 [#49](https://github.com/stevederico/Sapporo/issues/49) | 🚧 [#49](https://github.com/stevederico/Sapporo/issues/49) | ❌ [#49](https://github.com/stevederico/Sapporo/issues/49) | ❌ [#49](https://github.com/stevederico/Sapporo/issues/49) | n/a |
 
-✅ working · 🚧 in progress · ⚠️ partial · ❌ absent. Gap cells name the tracking issue. M4 boot gate #66. NVMe firmware #68.
+✅ working · 🚧 in progress · ⚠️ partial · ❌ absent. Gap cells name the tracking issue. M4 boot gate [#66](https://github.com/stevederico/Sapporo/issues/66). NVMe firmware [#68](https://github.com/stevederico/Sapporo/issues/68).
 
 <br />
 
@@ -52,13 +52,13 @@ gmake ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
 
 ### 🗺️ **One Map Of The Field**
 - Asahi, lore series, Omarchy Mac, and independent reverse engineering, in one tracker
-- Issues #45–#93 name who is active and where the work lives
+- Issues [#45](https://github.com/stevederico/Sapporo/issues/45)–[#93](https://github.com/stevederico/Sapporo/issues/93) name who is active and where the work lives
 - Reach out. Consolidate. Do not duplicate
 
 ### 💻 **M-Series Gaps**
 - M1/M2: Thunderbolt, DP Alt Mode, SEP, ANE
 - M3: installer, display, GPU, USB-PD
-- M4: NVMe, PCIe, devicetree, input. No boot log here yet (#66)
+- M4: NVMe, PCIe, devicetree, input. No boot log here yet ([#66](https://github.com/stevederico/Sapporo/issues/66))
 
 <br />
 
