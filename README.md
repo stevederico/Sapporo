@@ -1,5 +1,5 @@
 <div align="center">
-<img width="1474" height="668" alt="sapporo-banner" src="sapporo-banner.jpg" />
+<img width="1474" height="668" alt="sapporo-banner" src="https://github.com/user-attachments/assets/cdee405e-f79d-4a88-af0a-4368dd7fa1cf" />
 
 
 
