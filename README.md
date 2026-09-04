@@ -27,7 +27,7 @@
 | Audio/cam | ✅ | ✅ | ⚠️ [#61](https://github.com/stevederico/Sapporo/issues/61) | ❌ [#91](https://github.com/stevederico/Sapporo/issues/91) | ✅, T1❌ |
 | Input | ✅ | ✅ | ✅ | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
 | Suspend | ✅ | ✅ | ✅ | ❌ [#92](https://github.com/stevederico/Sapporo/issues/92) | ✅ |
-| TouchID | ❌ [#48](https://github.com/stevederico/Sapporo/issues/48) | ❌ [#48](https://github.com/stevederico/Sapporo/issues/48) | ❌ [#48](https://github.com/stevederico/Sapporo/issues/48) | ❌ [#48](https://github.com/stevederico/Sapporo/issues/48) | ❌ [#87](https://github.com/stevederico/Sapporo/issues/87) |
+| TouchID | 🚧 [#48](https://github.com/stevederico/Sapporo/issues/48) | 🚧 [#48](https://github.com/stevederico/Sapporo/issues/48) | 🚧 [#48](https://github.com/stevederico/Sapporo/issues/48) | 🚧 [#48](https://github.com/stevederico/Sapporo/issues/48) | ❌ [#87](https://github.com/stevederico/Sapporo/issues/87) |
 | SEP/ANE | 🚧 [#49](https://github.com/stevederico/Sapporo/issues/49) | 🚧 [#49](https://github.com/stevederico/Sapporo/issues/49) | ❌ [#49](https://github.com/stevederico/Sapporo/issues/49) | ❌ [#49](https://github.com/stevederico/Sapporo/issues/49) | n/a |
 
 ✅ working · 🚧 in progress · ⚠️ partial · ❌ absent. Gap cells name the tracking issue. M4 boot gate [#66](https://github.com/stevederico/Sapporo/issues/66). NVMe firmware [#68](https://github.com/stevederico/Sapporo/issues/68).
