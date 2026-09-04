@@ -15,17 +15,17 @@
 
 | Block | M1 | M2 | M3 | M4 | Intel |
 |---|---|---|---|---|---|
-| Installer | ✅ | ✅ | 🚧 [#58](https://github.com/stevederico/Sapporo/issues/58) | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
-| Display | ✅ | ✅ | 🚧 [#58](https://github.com/stevederico/Sapporo/issues/58) | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
-| GPU/DCP | ✅ | ✅ | 🚧/❌ [#59](https://github.com/stevederico/Sapporo/issues/59) | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
+| Installer | ✅ | ✅ | 🚧 [#58](https://github.com/stevederico/Sapporo/issues/58) | 🚧 [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
+| Display | ✅ | ✅ | 🚧 [#58](https://github.com/stevederico/Sapporo/issues/58) | 🚧 [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
+| GPU/DCP | ✅ | ✅ | 🚧/❌ [#59](https://github.com/stevederico/Sapporo/issues/59) | 🚧 [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
 | Decode | ✅ | ✅ | ⚠️ no AV1 | ❌ [#93](https://github.com/stevederico/Sapporo/issues/93) | ✅ |
 | Encoder | ❌ [#51](https://github.com/stevederico/Sapporo/issues/51) | ❌ [#51](https://github.com/stevederico/Sapporo/issues/51) | ❌ [#51](https://github.com/stevederico/Sapporo/issues/51) | ❌ [#51](https://github.com/stevederico/Sapporo/issues/51) | ✅ |
-| USB | ✅ | ✅ | 🚧 [#60](https://github.com/stevederico/Sapporo/issues/60) | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
+| USB | ✅ | ✅ | 🚧 [#60](https://github.com/stevederico/Sapporo/issues/60) | 🚧 [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
 | Thunderbolt | 🚧 [#45](https://github.com/stevederico/Sapporo/issues/45) | 🚧 [#45](https://github.com/stevederico/Sapporo/issues/45) | ❌ [#45](https://github.com/stevederico/Sapporo/issues/45) | ❌ [#88](https://github.com/stevederico/Sapporo/issues/88) | ✅ |
 | DP altmode | 🚧 [#47](https://github.com/stevederico/Sapporo/issues/47) | 🚧 [#47](https://github.com/stevederico/Sapporo/issues/47) | 🚧 [#47](https://github.com/stevederico/Sapporo/issues/47) | ❌ [#89](https://github.com/stevederico/Sapporo/issues/89) | ✅ |
-| WiFi/BT | ✅ | ✅ | ✅ | ❌ [#90](https://github.com/stevederico/Sapporo/issues/90) | ✅ |
+| WiFi/BT | ✅ | ✅ | ✅ | 🚧 [#90](https://github.com/stevederico/Sapporo/issues/90) | ✅ |
 | Audio/cam | ✅ | ✅ | ⚠️ [#61](https://github.com/stevederico/Sapporo/issues/61) | ❌ [#91](https://github.com/stevederico/Sapporo/issues/91) | ✅, T1❌ |
-| Input | ✅ | ✅ | ✅ | ❌ [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
+| Input | ✅ | ✅ | ✅ | 🚧 [#67](https://github.com/stevederico/Sapporo/issues/67) | ✅ |
 | Suspend | ✅ | ✅ | ✅ | ❌ [#92](https://github.com/stevederico/Sapporo/issues/92) | ✅ |
 | TouchID | 🚧 [#48](https://github.com/stevederico/Sapporo/issues/48) | 🚧 [#48](https://github.com/stevederico/Sapporo/issues/48) | 🚧 [#48](https://github.com/stevederico/Sapporo/issues/48) | 🚧 [#48](https://github.com/stevederico/Sapporo/issues/48) | ❌ [#87](https://github.com/stevederico/Sapporo/issues/87) |
 | SEP/ANE | 🚧 [#49](https://github.com/stevederico/Sapporo/issues/49) | 🚧 [#49](https://github.com/stevederico/Sapporo/issues/49) | ❌ [#49](https://github.com/stevederico/Sapporo/issues/49) | ❌ [#49](https://github.com/stevederico/Sapporo/issues/49) | n/a |
