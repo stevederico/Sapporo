@@ -1,17 +1,13 @@
 <div align="center">
 <img width="1474" height="668" alt="sapporo-banner" src="https://github.com/user-attachments/assets/cdee405e-f79d-4a88-af0a-4368dd7fa1cf" />
 
-
-
 # Sapporo
-
-### The aggregate of Apple Silicon Linux
 
 </div>
 
 <br />
 
-## 📊 Chip Support
+## 📊 Chip Support - We Will Fix Everything
 
 | Block | M1 | M2 | M3 | M4 | Intel |
 |---|---|---|---|---|---|
