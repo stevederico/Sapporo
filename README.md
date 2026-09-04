@@ -15,22 +15,22 @@
 
 | Block | M1 | M2 | M3 | M4 | Intel |
 |---|---|---|---|---|---|
-| Installer | ✅ | ✅ | 🚧 #15 | ❌ #24 | ✅ |
-| Display | ✅ | ✅ | 🚧 #15 | ❌ #24 | ✅ |
-| GPU/DCP | ✅ | ✅ | 🚧/❌ #16 | ❌ #24 | ✅ |
-| Decode | ✅ | ✅ | ⚠️ no AV1 | ❌ #50 | ✅ |
-| Encoder | ❌ #8 | ❌ #8 | ❌ #8 | ❌ #8 | ✅ |
-| USB | ✅ | ✅ | 🚧 #17 | ❌ #24 | ✅ |
-| Thunderbolt | 🚧 #2 | 🚧 #2 | ❌ #2 | ❌ #45 | ✅ |
-| DP altmode | 🚧 #4 | 🚧 #4 | 🚧 #4 | ❌ #46 | ✅ |
-| WiFi/BT | ✅ | ✅ | ✅ | ❌ #47 | ✅ |
-| Audio/cam | ✅ | ✅ | ⚠️ #18 | ❌ #48 | ✅, T1❌ |
-| Input | ✅ | ✅ | ✅ | ❌ #24 | ✅ |
-| Suspend | ✅ | ✅ | ✅ | ❌ #49 | ✅ |
-| TouchID | ❌ #5 | ❌ #5 | ❌ #5 | ❌ #5 | ❌ #44 |
-| SEP/ANE | 🚧 #6 | 🚧 #6 | ❌ #6 | ❌ #6 | n/a |
+| Installer | ✅ | ✅ | 🚧 #58 | ❌ #67 | ✅ |
+| Display | ✅ | ✅ | 🚧 #58 | ❌ #67 | ✅ |
+| GPU/DCP | ✅ | ✅ | 🚧/❌ #59 | ❌ #67 | ✅ |
+| Decode | ✅ | ✅ | ⚠️ no AV1 | ❌ #93 | ✅ |
+| Encoder | ❌ #51 | ❌ #51 | ❌ #51 | ❌ #51 | ✅ |
+| USB | ✅ | ✅ | 🚧 #60 | ❌ #67 | ✅ |
+| Thunderbolt | 🚧 #45 | 🚧 #45 | ❌ #45 | ❌ #88 | ✅ |
+| DP altmode | 🚧 #47 | 🚧 #47 | 🚧 #47 | ❌ #89 | ✅ |
+| WiFi/BT | ✅ | ✅ | ✅ | ❌ #90 | ✅ |
+| Audio/cam | ✅ | ✅ | ⚠️ #61 | ❌ #91 | ✅, T1❌ |
+| Input | ✅ | ✅ | ✅ | ❌ #67 | ✅ |
+| Suspend | ✅ | ✅ | ✅ | ❌ #92 | ✅ |
+| TouchID | ❌ #48 | ❌ #48 | ❌ #48 | ❌ #48 | ❌ #87 |
+| SEP/ANE | 🚧 #49 | 🚧 #49 | ❌ #49 | ❌ #49 | n/a |
 
-✅ working · 🚧 in progress · ⚠️ partial · ❌ absent. Gap cells name the tracking issue. M4 boot gate #23. NVMe firmware #25.
+✅ working · 🚧 in progress · ⚠️ partial · ❌ absent. Gap cells name the tracking issue. M4 boot gate #66. NVMe firmware #68.
 
 <br />
 
@@ -52,13 +52,13 @@ gmake ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
 
 ### 🗺️ **One Map Of The Field**
 - Asahi, lore series, Omarchy Mac, and independent reverse engineering, in one tracker
-- Issues #2–#50 name who is active and where the work lives
+- Issues #45–#93 name who is active and where the work lives
 - Reach out. Consolidate. Do not duplicate
 
 ### 💻 **M-Series Gaps**
 - M1/M2: Thunderbolt, DP Alt Mode, SEP, ANE
 - M3: installer, display, GPU, USB-PD
-- M4: NVMe, PCIe, devicetree, input. No boot log here yet (#23)
+- M4: NVMe, PCIe, devicetree, input. No boot log here yet (#66)
 
 <br />
 
